@@ -72,7 +72,7 @@ def test_required_top_field_missing_stops_everything():
     }
     r = validate(record, model)
 
-    assert r.ok
+    assert not r.ok
     assert r.report() == (
         "1 validation failure(s):\n"
         "  - [order_id] is missing"

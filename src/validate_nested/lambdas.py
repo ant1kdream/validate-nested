@@ -20,6 +20,25 @@ class LambdaInfo(
         return f"{self.lambda_details}"
 
 
+def predicate(func, message, name=None):
+    """Build a one-off custom validator from any callable ``value -> bool``.
+
+    The engine appends ``, got <value>`` to ``message`` on failure::
+
+        is_even = predicate(lambda v: v % 2 == 0, "should be even")
+        model = {"count": (int, is_even)}        # fails as: should be even, got 3
+
+    ``func`` may be a lambda or a plain function — it's wrapped internally so the engine
+    always recognises it as a validator. For a reusable/parametrised validator, write a
+    function that returns a ``LambdaInfo`` directly (that's how the built-ins are made).
+    """
+    return LambdaInfo(
+        func_lambda=lambda v: func(v),
+        lambda_assert_msg=message,
+        lambda_details=name or getattr(func, "__name__", "predicate"),
+    )
+
+
 # ── string-marker (boolean) rules ──────────────────────────────────────────────
 def to_int(*args):
     return "to_int", *args

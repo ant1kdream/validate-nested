@@ -8,18 +8,36 @@ result into *any* test framework, or none.
 
 ```python
 from validate_nested import validate
-from validate_nested.lambdas import equal, length, empty
+from validate_nested.lambdas import equal, length, more
 
-model = {
-    "ids":        (list, length(3)),      # a list of exactly 3
-    "ids[*]":     dict,                   # every item is a dict
-    "state":      (str, equal("ok")),     # a string equal to "ok"
-    "message":    empty(str),             # an empty string
-    "error_code": (int, equal(0)),        # an int equal to 0
+# a nested response — dotted paths and [*] reach into it
+response = {
+    "status": "ok",
+    "page": {"size": 3, "index": 0},
+    "results": [
+        {"id": "a1", "score": 0.91},
+        {"id": "b2", "score": 0.40},   # <- too low
+        {"id": "c3", "score": 0.95},
+    ],
 }
 
-result = validate(response, model)        # -> Result(ok, failures, skipped)
-assert result.ok, result.report()         # readable message listing every failure
+model = {
+    "status":           (str, equal("ok")),    # top-level field
+    "page.size":        (int, equal(3)),        # dotted path into a nested dict
+    "results":          (list, length(3)),      # the list itself
+    "results[*].id":    str,                    # a field of every list item
+    "results[*].score": (float, more(0.5)),     # per-item value check
+}
+
+r = validate(response, model)        # -> Result(ok, failures, skipped); never raises
+assert r.ok, r.report()
+```
+
+The failing item is reported by its exact path:
+
+```text
+1 validation failure(s):
+  - [results[1].score] should be greater than 0.5, got 0.4
 ```
 
 No classes to declare, no schema files — the model *is* the spec, inline where you use it.
@@ -66,17 +84,53 @@ Combine a type with one or more validators in a tuple:
 
 ### Paths & wildcards
 
-Dotted paths and `[*]` (every item of a list):
+Dotted paths, the `[*]` wildcard (every item of a list), and explicit indices:
 
 ```python
 {
-    "data.user.id": int,        # nested
-    "items[*]": dict,           # each element of items
-    "items[*].price": float,    # price of each element
+    "data.user.id": int,                  # nested
+    "items[*]": dict,                     # every element of items
+    "items[*].price": float,              # price of every element
+    "items[0].sku": str,                  # a specific element by index
+    "orders[*].items[*].price": float,    # nested wildcards
 }
 ```
 
-### Validators (`from validate_nested.lambdas import ...`)
+A failure carries the concrete index (`items[1].price`), an out-of-range index is
+reported as missing, and the two styles can be mixed. See
+[tests/rules/test_lists.py](tests/rules/test_lists.py).
+
+### Presence & coercion markers
+
+**Built-in only** (you can't define custom markers). They tune presence, emptiness and
+coercion:
+
+| Marker | Meaning |
+|---|---|
+| `not_empty()` | `len > 0` (the **default** for sized types) |
+| `empty()` | `len == 0` |
+| `opt()` | value may be absent → passes if missing |
+| `required()` | if this rule fails, stop and don't check the rest |
+| `not_exist()` | the path must be **absent** |
+| `undefined()` | don't assume empty-vs-filled (skip the len check) |
+| `to_int()` / `to_float()` | coerce before running validators, e.g. `(str, to_int(equal(5)))` |
+| `skip()` | if this rule fails, signal a **skip** instead of a failure |
+
+```python
+{
+    "id":       required(str),             # must be present, a string
+    "tags":     not_empty(list),           # a non-empty list
+    "notes":    empty(str),                # an empty string
+    "nickname": opt(str),                  # may be absent
+    "legacy":   not_exist(),               # must be absent
+    "count":    (str, to_int(equal(5))),   # coerce "5" -> 5 before checking
+}
+```
+
+Markers compose: `required(opt(str))` (optional, but the gate when present),
+`required(not_exist())`.
+
+### Validators — built-in (`from validate_nested.lambdas import ...`)
 
 | Validator | Passes when |
 |---|---|
@@ -94,20 +148,42 @@ Dotted paths and `[*]` (every item of a list):
 | `valid_score` / `positive_number` / `non_zero` | `0 < v <= 1` / `v >= 0` / `v > 0` |
 | `split_positive_numbers` | all comma-split parts `>= 0` |
 
-### Presence & coercion markers
+```python
+{
+    "title":   (str, length(8)),                       # exactly 8 chars
+    "status":  (str, exists_in(("open", "closed"))),   # one of
+    "score":   (float, in_range(0, 1)),                # 0 < score < 1
+    "tags":    (list, contains("urgent")),             # list contains "urgent"
+    "ref":     (str, ends(".pdf")),                    # ends with ".pdf"
+    "retries": (int, less(5)),                         # < 5
+}
+```
 
-| Marker | Meaning |
-|---|---|
-| `not_empty()` | `len > 0` (the **default** for sized types) |
-| `empty()` | `len == 0` |
-| `opt()` | value may be absent → passes if missing |
-| `required()` | if this rule fails, stop and don't check the rest |
-| `not_exist()` | the path must be **absent** |
-| `undefined()` | don't assume empty-vs-filled (skip the len check) |
-| `to_int()` / `to_float()` | coerce before running validators, e.g. `(str, to_int(equal(5)))` |
-| `skip()` | if this rule fails, signal a **skip** instead of a failure |
+### Extending — custom validators
 
-Markers compose: `required(opt(str))`, `required(not_exist())`.
+Need a check the built-ins don't cover? Two ways, both drop straight into a model
+(including over `[*]` list items):
+
+```python
+from validate_nested.lambdas import predicate, LambdaInfo
+
+# 1) inline, the short way — predicate(callable, message)
+is_even = predicate(lambda v: v % 2 == 0, "should be even")
+model = {"count": (int, is_even)}              # fails as: should be even, got 3
+
+# 2) reusable / parametrised — a function returning LambdaInfo
+#    (this is exactly how the built-ins like equal() and length() are written)
+def divisible_by(n):
+    return LambdaInfo(
+        func_lambda=lambda v: v % n == 0,
+        lambda_assert_msg=f"should be divisible by {n}",
+        lambda_details=f"divisible_by({n})",
+    )
+model = {"size": (int, divisible_by(3))}
+```
+
+Runnable examples (and custom `report(formatter=...)`):
+[tests/test_extending.py](tests/test_extending.py).
 
 ---
 
