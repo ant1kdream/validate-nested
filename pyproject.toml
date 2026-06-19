@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "validate-nested"
+version = "0.1.0"
+description = "A tiny, framework-agnostic DSL for validating the shape of nested dicts / JSON responses."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Sergei Murashov" }]
+keywords = ["validation", "json", "schema", "dict", "testing", "api"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+pytest = ["pytest>=6.0"]
+dev = ["pytest>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/sergei-murashov/validate-nested"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# make the src/ layout importable without an install (pytest >= 7)
+pythonpath = ["src"]
