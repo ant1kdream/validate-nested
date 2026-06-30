@@ -1,5 +1,10 @@
 # validate-nested
 
+[![CI](https://github.com/ant1kdream/validate-nested/actions/workflows/ci.yml/badge.svg)](https://github.com/ant1kdream/validate-nested/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/validate-nested.svg)](https://pypi.org/project/validate-nested/)
+[![Python versions](https://img.shields.io/pypi/pyversions/validate-nested.svg)](https://pypi.org/project/validate-nested/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **A tiny, dependency-free DSL for validating the *shape* of nested dicts / JSON responses
 of any depth.**
 

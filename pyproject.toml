@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "validate-nested"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A tiny, framework-agnostic DSL for validating the shape of nested dicts / JSON responses."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -12,10 +12,18 @@ license = { text = "MIT" }
 authors = [{ name = "Sergei Murashov" }]
 keywords = ["validation", "json", "schema", "dict", "testing", "api"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
-    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Testing",
 ]
 dependencies = []
@@ -24,7 +32,13 @@ dependencies = []
 dev = ["pytest>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/sergei-murashov/validate-nested"
+Homepage = "https://github.com/ant1kdream/validate-nested"
+Repository = "https://github.com/ant1kdream/validate-nested"
+Issues = "https://github.com/ant1kdream/validate-nested/issues"
+Changelog = "https://github.com/ant1kdream/validate-nested/blob/main/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = { attr = "validate_nested.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
