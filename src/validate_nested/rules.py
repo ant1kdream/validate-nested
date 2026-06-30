@@ -83,7 +83,6 @@ def process_validation_rules(validation_rules):
             "skip": False,
             "to_int": False,
             "to_float": False,
-            "hard_assert": False,
         }
     )
 

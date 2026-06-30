@@ -17,7 +17,7 @@ nested dicts / JSON responses.
 """
 from validate_nested.engine import validate
 from validate_nested.result import Failure, Result, format_failure, render_failures
-from validate_nested.rules import ComplexRule, process_validation_rules
+from validate_nested.rules import ComplexRule
 from validate_nested.soft import SoftValidator
 
 __version__ = "0.1.0"
@@ -30,7 +30,6 @@ __all__ = [
     "format_failure",
     "render_failures",
     "ComplexRule",
-    "process_validation_rules",
     "lambdas",
 ]
 

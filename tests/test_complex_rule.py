@@ -4,13 +4,10 @@
 per-field options:
 
   * ``assert_msg`` — replace the failure message for just this field,
-  * ``add_msg``    — prepend extra context to the default message,
-  * ``hard_assert``— make this one field raise immediately instead of collecting.
+  * ``add_msg``    — prepend extra context to the default message.
 
 Models are plain dicts, so reusable sub-models compose with ``**``.
 """
-import pytest
-
 from validate_nested import ComplexRule, validate
 from validate_nested.lambdas import equal, length, more, not_empty, required
 
@@ -54,23 +51,6 @@ def test_per_field_add_msg():
     r = validate(record, model)
 
     assert r.failures[0].message == "[blocking], should be equal to 'paid', got 'void'"
-
-
-def test_per_field_hard_assert_raises():
-    """``hard_assert`` makes this one field raise immediately instead of collecting."""
-    record = {
-        "order": {
-            "status": "void",
-        },
-    }
-    model = {
-        "order.status": ComplexRule(
-            value=(str, equal("paid")),
-            options={"hard_assert": True},
-        ),
-    }
-    with pytest.raises(AssertionError):
-        validate(record, model)
 
 
 # ── compose reusable sub-models with ** ────────────────────────────────────────

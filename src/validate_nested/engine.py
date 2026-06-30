@@ -53,7 +53,6 @@ class _Checker:
         # options
         self._additional_assert_msg = kwargs.pop("add_msg", None)
         self._replace_assert_msg = kwargs.pop("assert_msg", "")
-        self._hard_assert = kwargs.pop("hard_assert", False)
         self._to_int = kwargs.pop("to_int", None)
         self._to_float = kwargs.pop("to_float", None)
         # any leftover kwargs are ignored (host-specific context)
@@ -75,8 +74,6 @@ class _Checker:
         msg = self._message(default)
         if self._skip:
             raise SkipSignal(msg)
-        if self._hard_assert:
-            raise AssertionError(msg)
         self.failures.append(Failure(path=self.original_path, message=msg))
 
     def _has_failures(self):

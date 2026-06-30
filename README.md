@@ -1,6 +1,7 @@
 # validate-nested
 
-**A tiny, dependency-free DSL for validating the *shape* of nested dicts / JSON responses.**
+**A tiny, dependency-free DSL for validating the *shape* of nested dicts / JSON responses
+of any depth.**
 
 Describe what a response should look like with a compact `model` dict and let the engine
 check types, lengths, values, presence and per-item rules in one pass — then plug the
@@ -42,6 +43,59 @@ The failing item is reported by its exact path:
 
 No classes to declare, no schema files — the model *is* the spec, inline where you use it.
 
+### Nesting of any depth
+
+Paths reach as deep as the data goes, and `[*]` wildcards stack — one flat model describes
+a whole tree of orders → items → tags:
+
+```python
+from validate_nested import validate
+from validate_nested.lambdas import equal, length, more, contains, not_empty
+
+response = {
+    "status": "ok",
+    "meta": {
+        "page": {"index": 0, "size": 2},
+        "total": 2,
+    },
+    "orders": [
+        {
+            "id": "ORD-1",
+            "customer": {"id": 42, "email": "ada@example.io"},
+            "items": [
+                {"sku": "A-1", "price": 9.99,  "tags": ["new"]},
+                {"sku": "B-2", "price": 19.50, "tags": ["sale", "hot"]},
+            ],
+            "shipping": {"country": "DE", "zip": "10115"},
+        },
+    ],
+}
+
+model = {
+    "status":                     (str, equal("ok")),
+    "meta.page.index":            int,                  # dotted path, 3 levels down
+    "meta.total":                 (int, more(0)),
+    "orders":                     (list, not_empty()),
+    "orders[*].id":               (str, not_empty()),
+    "orders[*].customer.email":   (str, contains("@")),  # wildcard then a dotted path
+    "orders[*].items":            (list, not_empty()),
+    "orders[*].items[*].sku":     str,                   # wildcard inside a wildcard
+    "orders[*].items[*].price":   (float, more(0)),
+    "orders[*].items[*].tags[*]": str,                   # three wildcards deep
+    "orders[*].shipping.country": (str, length(2)),
+}
+
+assert validate(response, model).ok
+```
+
+If, say, the second item of the first order had a negative price, that one element is
+pinpointed — every other item still validates:
+
+```text
+1 validation failure(s):
+  - [orders[0].items[1].price] should be greater than 0, got -1.0
+```
+
 ---
 
 ## Why
@@ -81,6 +135,11 @@ Combine a type with one or more validators in a tuple:
 ```python
 {"score": (float, valid_score), "ids": (list, length(3)), "state": (str, equal("ok"))}
 ```
+
+Each validator has its own file:
+[`valid_score`](tests/lambdas/test_valid_score.py),
+[`length`](tests/lambdas/test_length.py),
+[`equal`](tests/lambdas/test_equal.py) — and the full list is in the validators table below.
 
 ### Paths & wildcards
 
@@ -127,8 +186,24 @@ coercion:
 }
 ```
 
-Markers compose: `required(opt(str))` (optional, but the gate when present),
-`required(not_exist())`.
+Markers compose. The key idiom is `required(opt(...))` — an **optional gate**: the field
+may be absent (then it and its children pass), but **if present** its shape is checked
+first, and if that fails the children are skipped:
+
+```python
+model = {
+    "profile":      required(opt(dict)),       # may be absent; if present, must be a dict
+    "profile.name": (str, equal("Ada")),       # only reached when profile is a valid dict
+}
+
+validate({"other": 1},               model).ok   # True  — profile absent, children skipped
+validate({"profile": {"name": "Ada"}}, model).ok # True  — present and valid
+validate({"profile": "oops"},        model).ok   # False — [profile] expected dict, got str
+```
+
+(`required(not_exist())` composes the same way.) See
+[tests/rules/test_required.py](tests/rules/test_required.py) and
+[tests/rules/test_opt.py](tests/rules/test_opt.py).
 
 ### Validators — built-in (`from validate_nested.lambdas import ...`)
 
@@ -182,6 +257,10 @@ def divisible_by(n):
 model = {"size": (int, divisible_by(3))}
 ```
 
+> ⚠️ **A bare `lambda` is silently ignored.** `(int, lambda v: v > 0)` won't run — the
+> engine only recognises a validator once it's wrapped (`predicate(...)` or
+> `LambdaInfo(...)`). Always wrap; never drop a raw `lambda` into a model.
+
 Runnable examples (and custom `report(formatter=...)`):
 [tests/test_extending.py](tests/test_extending.py).
 
@@ -197,6 +276,17 @@ if not result.ok:
     for f in result.failures:
         print(f.path, f.message)
 ```
+
+`result.ok` is True only when **every** path passed (a later passing field never masks an
+earlier failure), and `bool(result) == result.ok` — so `validate` reads cleanly as a gate,
+guarding work that should run only on a well-formed record:
+
+```python
+if validate(response, model):          # proceed only when the shape is right
+    enqueue(response["orders"])
+```
+
+See [tests/test_conditions.py](tests/test_conditions.py).
 
 ### 2. Immediate — assert on the result
 
@@ -220,6 +310,8 @@ with SoftValidator() as soft:
 # raises once at block end, listing every failure from both
 ```
 
+See [tests/test_modes.py](tests/test_modes.py).
+
 ### 4. pytest (optional)
 
 There is **no** shipped pytest helper — `validate` is all you need, and you wire the
@@ -240,6 +332,33 @@ def test_search():
 
 Not using pytest? Route the result anywhere — `unittest`'s `skipTest`, a logger, a custom
 exception. See [tests/test_skip.py](tests/test_skip.py) for skip wired both ways.
+
+### 5. Compose your own — e.g. a request helper
+
+`validate` is a building block — wrap it in whatever helper fits your domain. A common
+one validates an HTTP response's **status code as a gate**, then its body, and *only* its
+body if the code was right. Mark `status` `required` so a wrong code fails once and
+short-circuits — the `body.*` rules behind it are never checked (no cascade of
+"missing body field" noise behind an error response):
+
+```python
+from validate_nested import validate
+from validate_nested.lambdas import required, equal
+
+def validate_request(response, expected_code, model):
+    record = {"status": response.status_code, "body": response.json()}
+    gate = {"status": required((int, equal(expected_code)))}
+    r = validate(record, {**gate, **model})
+    assert r.ok, r.report()
+    return r
+
+# body rules are written against body.* paths:
+validate_request(response, 200, {"body.id": int, "body.state": (str, equal("ok"))})
+```
+
+A wrong code reports only `[status] ...` (the body is never inspected); a right code with
+a bad body reports `[body.state] ...`. See
+[tests/test_request_pattern.py](tests/test_request_pattern.py).
 
 ---
 
@@ -268,6 +387,32 @@ options={"assert_msg": "..."})`. See [tests/test_skip.py](tests/test_skip.py).
 r = validate(record, model)
 assert r.ok, r.report(formatter=lambda f: f"{f.path} is wrong: {f.message}")
 ```
+
+See [tests/test_modes.py](tests/test_modes.py) (`test_custom_formatter`).
+
+---
+
+## Advanced — per-field message (`ComplexRule`)
+
+`report(formatter=...)` reshapes *every* failure at once. To override just **one field's**
+message, wrap its rule in `ComplexRule(value=<rule>, options={...})` — `assert_msg`
+replaces the message, `add_msg` prepends context.
+
+Its most useful case is giving a `skip()` a readable reason: by default a fired skip
+carries the raw mismatch text (`expected dict, got str`), which says nothing about *why*
+you skipped. `assert_msg` fixes that:
+
+```python
+from validate_nested import ComplexRule, validate
+from validate_nested.lambdas import skip
+
+model = {"beta_feature": ComplexRule(skip(dict), {"assert_msg": "beta disabled in this env"})}
+r = validate(record, model)
+# r.skipped == "beta disabled in this env"   (not "expected dict, got str")
+```
+
+See [tests/test_complex_rule.py](tests/test_complex_rule.py) (messages) and
+[tests/test_skip.py](tests/test_skip.py) (custom skip reason).
 
 ---
 
