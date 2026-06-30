@@ -4,6 +4,8 @@ when EVERY model path passed — not just the last one — so ``if validate(...)
 Regression guard: a passing *last* field must never mask an earlier failure (the engine
 collects failures across all paths and derives ``ok = not failures``).
 """
+import pytest
+
 from validate_nested import validate
 from validate_nested.lambdas import equal, required
 
@@ -99,3 +101,9 @@ def test_wildcard_aggregates_across_items():
 
     assert not r.ok
     assert [f.path for f in r.failures] == ["items[1].price"]
+
+
+def test_empty_model_raises():
+    """An empty model is a programming error, not a pass — validate refuses it."""
+    with pytest.raises(ValueError):
+        validate({"k": 1}, {})
