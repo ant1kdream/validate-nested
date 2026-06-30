@@ -50,16 +50,14 @@ No classes to declare, no schema files — the model *is* the spec, inline where
 - **Structural + value checks together.** `(int, equal(0))`, `(list, length(3))`, `ids[*]`.
 - **Framework-agnostic.** The engine returns data; *you* decide how to report (plain
   code, immediate `assert`, soft-aggregate, or pytest).
-- **Zero dependencies.** Pure Python 3.8+. `pytest` is an optional extra only for the
-  pytest integration.
+- **Zero dependencies.** Pure Python 3.8+. `pytest` is only needed to run the tests.
 
 ---
 
 ## Install
 
 ```bash
-pip install validate-nested            # core, no dependencies
-pip install "validate-nested[pytest]"  # + the optional pytest integration
+pip install validate-nested    # core, no dependencies
 ```
 
 ---
@@ -215,20 +213,31 @@ assert r.ok, r.report(formatter=my_fmt) # custom message per failure
 from validate_nested import SoftValidator
 
 with SoftValidator() as soft:
-    soft.check(resp_a, model_a)
-    soft.check(resp_b, model_b)
+    soft.validate(resp_a, model_a)
+    soft.validate(resp_b, model_b)
 # raises once at block end, listing every failure from both
 ```
 
-### 4. pytest
+### 4. pytest (optional)
+
+There is **no** shipped pytest helper — `validate` is all you need, and you wire the
+`Result` however you like (this also keeps the namespace clear of `pytest-check` & co.).
+A typical wiring is three lines; define your own once and reuse it:
 
 ```python
-from validate_nested.integrations.pytest import check
+def validate_or_skip(record, model):       # your helper — keep it wherever you like
+    r = validate(record, model)
+    if r.skipped:
+        pytest.skip(r.skipped)              # a fired skip() rule -> skip the test
+    assert r.ok, r.report()                 # any other failure -> fail with the report
+    return r
 
 def test_search():
-    check(response.json(), {"state": (str, equal("ok")), "hits[*]": dict})
-    # a fired skip() -> pytest.skip(reason); any other failure -> pytest.fail(report)
+    validate_or_skip(response.json(), {"state": (str, equal("ok")), "hits[*]": dict})
 ```
+
+Not using pytest? Route the result anywhere — `unittest`'s `skipTest`, a logger, a custom
+exception. See [tests/test_skip.py](tests/test_skip.py) for skip wired both ways.
 
 ---
 
@@ -238,12 +247,13 @@ def test_search():
 `skip()`-marked rule fails, `validate` returns `Result(skipped="<reason>")`. You decide:
 
 ```python
-result = validate(record, {"feature": skip(dict)})
-if result.skipped:
-    ...   # mark inconclusive, log, etc.
+r = validate(record, {"feature": skip(dict)})
+if r.skipped:
+    pytest.skip(r.skipped)   # or unittest's skipTest, a log call, your own — your choice
 ```
 
-The pytest integration turns `result.skipped` into a real `pytest.skip(reason)`.
+Override the default skip reason per field with `ComplexRule(value=skip(...),
+options={"assert_msg": "..."})`. See [tests/test_skip.py](tests/test_skip.py).
 
 ---
 

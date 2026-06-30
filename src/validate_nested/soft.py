@@ -6,8 +6,8 @@ single aggregated ``AssertionError`` at the end (handy in one test asserting sev
 records).
 
     with SoftValidator() as soft:
-        soft.check(resp_a, model_a)
-        soft.check(resp_b, model_b)
+        soft.validate(resp_a, model_a)
+        soft.validate(resp_b, model_b)
     # raises here if either failed, listing all failures
 """
 from validate_nested.engine import validate
@@ -20,7 +20,7 @@ class SoftValidator:
         self.failures = []
         self.skipped = []
 
-    def check(self, record, model, **options):
+    def validate(self, record, model, **options):
         """Validate and accumulate failures; returns the individual Result."""
         result = validate(record, model, **options)
         self.failures.extend(result.failures)
