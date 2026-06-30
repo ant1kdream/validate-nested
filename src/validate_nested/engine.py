@@ -51,7 +51,6 @@ class _Checker:
         self.validators = kwargs.pop("validators", [])
 
         # options
-        self._merge = kwargs.pop("merge", True)
         self._additional_assert_msg = kwargs.pop("add_msg", None)
         self._replace_assert_msg = kwargs.pop("assert_msg", "")
         self._hard_assert = kwargs.pop("hard_assert", False)
@@ -159,25 +158,6 @@ class _Checker:
         return self.exist and not self._has_failures()
 
 
-def _apply_sort(record, sort):
-    """Optionally sort lists in the record by a key before validating, e.g.
-    ``validate(rec, model, sort={"items": "id"})``."""
-    for sort_path, sort_key in sort.items():
-        value = path_getter(record, sort_path, default=None)
-        if not value:
-            log.warning("sort: path %r not found", sort_path)
-            continue
-        if not isinstance(value, list):
-            log.warning("sort: path %r is not a list", sort_path)
-            continue
-        sorted_value = sorted(value, key=lambda x: x[sort_key])
-        segments = sort_path.split(".")
-        temp = record
-        for segment in segments[:-1]:
-            temp = temp[segment]
-        temp[segments[-1]] = sorted_value
-
-
 def validate(record, model, **options):
     """Validate ``record`` against ``model`` and return a :class:`Result`.
 
@@ -189,10 +169,6 @@ def validate(record, model, **options):
         raise ValueError("model cannot be empty")
 
     log.debug("validating against model: %r", model)
-
-    sort = options.get("sort")
-    if sort:
-        _apply_sort(record, sort)
 
     t_dict = convert_paths_to_template(record)
     failures = []

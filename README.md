@@ -72,6 +72,8 @@ A model is `{path: rule}`. A **rule** is a type, a marker, a validator, or a tup
 {"age": int, "name": str, "tags": list, "meta": dict, "score": float}
 ```
 
+A tuple of types is a union (`(int, str)` = "either"). See [tests/test_types.py](tests/test_types.py).
+
 ### Type + value validators
 
 Combine a type with one or more validators in a tuple:
@@ -96,7 +98,7 @@ Dotted paths, the `[*]` wildcard (every item of a list), and explicit indices:
 
 A failure carries the concrete index (`items[1].price`), an out-of-range index is
 reported as missing, and the two styles can be mixed. See
-[tests/rules/test_lists.py](tests/rules/test_lists.py).
+[tests/test_lists.py](tests/test_lists.py).
 
 ### Presence & coercion markers
 
@@ -105,14 +107,14 @@ coercion:
 
 | Marker | Meaning |
 |---|---|
-| `not_empty()` | `len > 0` (the **default** for sized types) |
-| `empty()` | `len == 0` |
-| `opt()` | value may be absent → passes if missing |
-| `required()` | if this rule fails, stop and don't check the rest |
-| `not_exist()` | the path must be **absent** |
-| `undefined()` | don't assume empty-vs-filled (skip the len check) |
-| `to_int()` / `to_float()` | coerce before running validators, e.g. `(str, to_int(equal(5)))` |
-| `skip()` | if this rule fails, signal a **skip** instead of a failure |
+| [`not_empty()`](tests/rules/test_not_empty.py) | `len > 0` (the **default** for sized types) |
+| [`empty()`](tests/rules/test_empty.py) | `len == 0` |
+| [`opt()`](tests/rules/test_opt.py) | value may be absent → passes if missing |
+| [`required()`](tests/rules/test_required.py) | if this rule fails, stop and don't check the rest |
+| [`not_exist()`](tests/rules/test_not_exist.py) | the path must be **absent** |
+| [`undefined()`](tests/rules/test_undefined.py) | don't assume empty-vs-filled (skip the len check) |
+| [`to_int()`](tests/rules/test_to_int.py) / [`to_float()`](tests/rules/test_to_float.py) | coerce before running validators, e.g. `(str, to_int(equal(5)))` |
+| [`skip()`](tests/test_skip.py) | if this rule fails, signal a **skip** instead of a failure |
 
 ```python
 {
@@ -132,19 +134,19 @@ Markers compose: `required(opt(str))` (optional, but the gate when present),
 
 | Validator | Passes when |
 |---|---|
-| `equal(x)` / `not_equal(x)` | value `==` / `!=` x |
-| `length(n)` | `len(value) == n` |
-| `approx(x, delta=0.01)` | `abs(value - x) <= delta` |
-| `contains(x)` | substring / all items in value |
-| `exists_in((a, b, ...))` | value is one of |
-| `in_range(a, b)` | `a < value < b` |
-| `less(x)` / `more(x)` | `value < x` / `value > x` |
-| `ends(x)` | `value.endswith(x)` |
-| `count(value, amount)` | value appears `amount` times |
-| `split_length(n, sep=",")` | `len(value.split(sep)) == n` |
-| `lower_match(x)` | case-insensitive equality |
-| `valid_score` / `positive_number` / `non_zero` | `0 < v <= 1` / `v >= 0` / `v > 0` |
-| `split_positive_numbers` | all comma-split parts `>= 0` |
+| [`equal(x)`](tests/lambdas/test_equal.py) / [`not_equal(x)`](tests/lambdas/test_not_equal.py) | value `==` / `!=` x |
+| [`length(n)`](tests/lambdas/test_length.py) | `len(value) == n` |
+| [`approx(x, delta=0.01)`](tests/lambdas/test_approx.py) | `abs(value - x) <= delta` |
+| [`contains(x)`](tests/lambdas/test_contains.py) | substring / all items in value |
+| [`exists_in((a, b, ...))`](tests/lambdas/test_exists_in.py) | value is one of |
+| [`in_range(a, b)`](tests/lambdas/test_in_range.py) | `a < value < b` |
+| [`less(x)`](tests/lambdas/test_less.py) / [`more(x)`](tests/lambdas/test_more.py) | `value < x` / `value > x` |
+| [`ends(x)`](tests/lambdas/test_ends.py) | `value.endswith(x)` |
+| [`count(value, amount)`](tests/lambdas/test_count.py) | value appears `amount` times |
+| [`split_length(n, sep=",")`](tests/lambdas/test_split_length.py) | `len(value.split(sep)) == n` |
+| [`lower_match(x)`](tests/lambdas/test_lower_match.py) | case-insensitive equality |
+| [`valid_score`](tests/lambdas/test_valid_score.py) / [`positive_number`](tests/lambdas/test_positive_number.py) / [`non_zero`](tests/lambdas/test_non_zero.py) | `0 < v <= 1` / `v >= 0` / `v > 0` |
+| [`split_positive_numbers`](tests/lambdas/test_split_positive_numbers.py) | all comma-split parts `>= 0` |
 
 ```python
 {
