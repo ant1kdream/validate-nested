@@ -16,14 +16,16 @@ nested dicts / JSON responses.
     assert r.ok, r.report()              # idiomatic immediate check
 """
 from validate_nested.engine import validate
+from validate_nested.model_from import model_from
 from validate_nested.result import Failure, Result, format_failure, render_failures
 from validate_nested.rules import ComplexRule
 from validate_nested.soft import SoftValidator
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "validate",
+    "model_from",
     "SoftValidator",
     "Result",
     "Failure",

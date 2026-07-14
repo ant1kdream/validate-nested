@@ -269,6 +269,71 @@ model = {"size": (int, divisible_by(3))}
 Runnable examples (and custom `report(formatter=...)`):
 [tests/test_extending.py](tests/test_extending.py).
 
+### Generating a model from a reference — `model_from`
+
+Tired of writing models by hand? Freeze a known-good record (a *reference*) into a
+model, then loosen exactly the paths that vary — and validate **other** records of the
+same shape against it:
+
+```python
+from validate_nested import model_from, validate
+
+reference = {                      # yesterday's known-good response
+    "user": {"name": "Alice", "age": 30},
+    "score": 0.87,
+    "items": [{"sku": "A1", "qty": 2}, {"sku": "B2", "qty": 1}],
+}
+
+model = model_from(
+    reference,
+    ignore={"items[*].sku"},       # presence + type checked, value not compared
+    approximate={"score": 0.05},   # number with a tolerance ("all" = every number)
+    mandatory="all",               # containers wrapped with required() -> fail fast
+)
+
+r = validate(todays_response, model)   # a DIFFERENT record, same shape
+assert r.ok, r.report()
+```
+
+The generated model is a **plain model** — the same DSL you would write by hand:
+
+```python
+>>> from pprint import pprint
+>>> pprint(model_from(reference))
+{'items': (<class 'list'>, length(2): lambda v: len(v) == 2),
+ 'items[0]': <class 'dict'>,
+ 'items[0].qty': (<class 'int'>, equal(2): lambda v: v == 2),
+ 'items[0].sku': (<class 'str'>, equal(A1): lambda v: v == A1),
+ 'items[1]': <class 'dict'>,
+ 'items[1].qty': (<class 'int'>, equal(1): lambda v: v == 1),
+ 'items[1].sku': (<class 'str'>, equal(B2): lambda v: v == B2),
+ 'score': (<class 'float'>, equal(0.87): lambda v: v == 0.87),
+ 'user': <class 'dict'>,
+ 'user.age': (<class 'int'>, equal(30): lambda v: v == 30),
+ 'user.name': (<class 'str'>, equal(Alice): lambda v: v == Alice)}
+```
+
+— i.e. exactly what you would have typed:
+
+```python
+model = {
+    "user":         dict,
+    "user.name":    (str, equal("Alice")),
+    "user.age":     (int, equal(30)),
+    "score":        (float, equal(0.87)),
+    "items":        (list, length(2)),
+    ...
+}
+```
+
+So `model_from` doubles as a **scaffold generator**: print the model once, paste it
+into your test as a literal and edit it by hand from there.
+
+Value mapping: scalars → `equal(...)`, numbers under `approximate` → `to_float(approx(...))`,
+non-empty lists → `length(n)`, `""`/`[]`/`{}` → `empty(...)`, `None` → `NoneType`;
+`overwrite={path: rule}` replaces any generated rule with your own. Runnable examples:
+[tests/test_model_from.py](tests/test_model_from.py).
+
 ---
 
 ## Consumption modes
