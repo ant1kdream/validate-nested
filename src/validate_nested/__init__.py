@@ -21,7 +21,7 @@ from validate_nested.result import Failure, Result, format_failure, render_failu
 from validate_nested.rules import ComplexRule
 from validate_nested.soft import SoftValidator
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "validate",

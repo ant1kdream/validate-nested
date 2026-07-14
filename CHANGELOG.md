@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — Unreleased
+
+No functional changes — verifies the tag-triggered PyPI publishing after making it
+idempotent (`skip-existing`): 0.2.0 was uploaded manually and raced the workflow,
+failing its deploy with "400 File already exists".
+
 ## [0.2.0] — Unreleased
 
 ### Added
@@ -33,5 +39,6 @@ Initial public release.
 - Extension points: `predicate(...)` / `LambdaInfo(...)` custom validators, and
   `ComplexRule` for per-field message overrides.
 
+[0.2.1]: https://github.com/ant1kdream/validate-nested/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ant1kdream/validate-nested/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ant1kdream/validate-nested/releases/tag/v0.1.0
